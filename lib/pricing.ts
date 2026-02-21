@@ -1,4 +1,13 @@
-import type { Discount } from "@prisma/client";
+/** Minimal shape of a Discount record — avoids depending on generated Prisma types. */
+export interface Discount {
+  id: string;
+  name: string;
+  kind: string;
+  value: number;
+  isActive: boolean;
+  startAt: Date | null;
+  endAt: Date | null;
+}
 
 export interface EffectivePriceResult {
     effectivePriceCents: number;

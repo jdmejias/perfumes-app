@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getEffectivePrice } from "@/lib/pricing";
-import { Prisma, type Discount } from "@prisma/client";
+import { Prisma } from "@prisma/client";
+import type { Discount } from "@/lib/pricing";
 
 /**
  * GET /api/products

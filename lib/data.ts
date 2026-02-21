@@ -6,7 +6,7 @@
 
 import { prisma } from "./prisma";
 import { getEffectivePrice } from "./pricing";
-import type { Discount } from "@prisma/client";
+import type { Discount } from "@/lib/pricing";
 import { Prisma } from "@prisma/client";
 
 // ─────────────────────────────────────────────────────────────
