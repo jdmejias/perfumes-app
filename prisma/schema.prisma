@@ -1,14 +1,280 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Luxauris – Prisma Schema
+// learn more: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
-  output   = "../app/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum Gender {
+  MEN
+  WOMEN
+  UNISEX
+}
+
+enum Concentration {
+  EDP
+  EDT
+  PARFUM
+  EXTRAIT
+  COLOGNE
+}
+
+enum VariantType {
+  DECANT
+  FULL_BOTTLE
+  TESTER
+}
+
+enum DiscountKind {
+  PERCENT
+  FIXED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  SHIPPED
+  DELIVERED
+}
+
+enum CategoryType {
+  MEN
+  WOMEN
+  UNISEX
+  DECANTS
+  OFFERS
+  BRANDS
+  NEW
+}
+
+// ─────────────────────────────────────────────
+// BRAND
+// ─────────────────────────────────────────────
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+
+  @@map("brands")
+}
+
+// ─────────────────────────────────────────────
+// CATEGORY
+// ─────────────────────────────────────────────
+
+model Category {
+  id        String        @id @default(cuid())
+  name      String
+  slug      String        @unique
+  type      CategoryType?
+  products  Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT
+// ─────────────────────────────────────────────
+
+model Product {
+  id            String        @id @default(cuid())
+  name          String
+  slug          String        @unique
+  description   String?
+  gender        Gender
+  concentration Concentration
+  topNotes      String?
+  middleNotes   String?
+  baseNotes     String?
+  isActive      Boolean       @default(true)
+
+  brandId    String
+  brand      Brand           @relation(fields: [brandId], references: [id])
+  categories Category[]
+
+  images    ProductImage[]
+  variants  Variant[]
+  discounts Discount[]
+  wishlist  WishlistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([brandId])
+  @@index([gender])
+  @@index([isActive])
+  @@map("products")
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id           String         @id @default(cuid())
+  name         String?
+  email        String         @unique
+  passwordHash String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  wishlist     WishlistItem[]
+
+  @@index([email])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// WISHLIST
+// ─────────────────────────────────────────────
+
+model WishlistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@map("wishlist_items")
+}
+
+// ─────────────────────────────────────────────
+// PRODUCT IMAGE
+// ─────────────────────────────────────────────
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  alt       String?
+  position  Int     @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_images")
+}
+
+// ─────────────────────────────────────────────
+// VARIANT
+// ─────────────────────────────────────────────
+
+model Variant {
+  id                   String      @id @default(cuid())
+  productId            String
+  product              Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type                 VariantType
+  sizeMl               Int
+  sku                  String      @unique
+  priceCents           Int
+  compareAtPriceCents  Int?
+  stock                Int         @default(0)
+  isActive             Boolean     @default(true)
+
+  discounts  Discount[]
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([sku])
+  @@map("variants")
+}
+
+// ─────────────────────────────────────────────
+// DISCOUNT
+// Rule: exactly ONE of (productId, variantId) must be set.
+// Enforced at application layer. DB allows nullable for flexibility.
+// ─────────────────────────────────────────────
+
+model Discount {
+  id        String       @id @default(cuid())
+  name      String
+  kind      DiscountKind
+  /// For PERCENT: 1-100. For FIXED: amount in cents.
+  value     Int
+  isActive  Boolean      @default(true)
+  startAt   DateTime?
+  endAt     DateTime?
+
+  // Only one of these should be set at a time (application-enforced)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId String?
+  variant   Variant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([variantId])
+  @@index([isActive])
+  @@map("discounts")
+}
+
+// ─────────────────────────────────────────────
+// ORDER
+// ─────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(cuid())
+  status          OrderStatus @default(PENDING)
+
+  subtotalCents   Int
+  discountCents   Int         @default(0)
+  shippingCents   Int         @default(0)
+  totalCents      Int
+
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  shippingAddress String
+
+  paymentProvider String?
+  paymentRef      String?
+
+  items     OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([customerEmail])
+  @@map("orders")
+}
+
+// ─────────────────────────────────────────────
+// ORDER ITEM
+// ─────────────────────────────────────────────
+
+model OrderItem {
+  id            String  @id @default(cuid())
+  orderId       String
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId     String
+  variant       Variant @relation(fields: [variantId], references: [id])
+  quantity      Int
+  unitPriceCents Int
+  lineTotalCents Int
+
+  @@index([orderId])
+  @@index([variantId])
+  @@map("order_items")
 }
