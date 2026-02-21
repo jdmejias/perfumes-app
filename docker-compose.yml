@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres:16
+    container_name: perfume_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: perfume
+      POSTGRES_PASSWORD: perfume123
+      POSTGRES_DB: perfume_db
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "5432:5432"
+    volumes:
+      - perfume_pgdata:/var/lib/postgresql/data
+
+volumes:
+  perfume_pgdata:
