@@ -1,6 +1,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getFeaturedProducts, getCategories, getBrands, getProducts } from "@/lib/data";
+
+export const dynamic = 'force-dynamic';
 import ProductCard from "@/components/ProductCard";
 import HeroCarousel from "@/components/HeroCarousel";
 import { formatPrice } from "@/lib/utils";

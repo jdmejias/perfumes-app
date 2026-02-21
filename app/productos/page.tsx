@@ -1,5 +1,7 @@
 import { Suspense } from "react";
 import { getProducts, getCategories, getBrands } from "@/lib/data";
+
+export const dynamic = 'force-dynamic';
 import ProductCard from "@/components/ProductCard";
 import ProductFilters from "@/components/ProductFilters";
 
