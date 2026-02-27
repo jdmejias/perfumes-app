@@ -7,22 +7,23 @@
  *  Modifica esta tabla para actualizar precios y re-ejecuta el seed.
  * 
  */
-const PRECIOS: Record<string, { ml5: number; ml10: number; ml100: number; descuento?: number }> = {
-  //                               5 ml     10 ml    100 ml   % descuento (opcional)
-  "imperium":             { ml5:  1800, ml10:  3200, ml100: 11000 },
-  "odyssey-aqua":         { ml5:  1500, ml10:  2600, ml100:  140000 },
-  "odyssey-spectra":      { ml5:  1500, ml10:  2600, ml100:  9500 },
-  "odyssey-homme":        { ml5:  1500, ml10:  2600, ml100:  9500 },
-  "afnan-9pm":            { ml5:  2000, ml10:  3500, ml100: 12000, descuento: 10 },
-  "club-de-nuit-iconic":  { ml5:  2200, ml10:  3800, ml100: 13000 },
-  "sceptre-malachite":    { ml5:  1800, ml10:  3200, ml100: 10500 },
-  "amber-oud-aqua-dubai": { ml5:  2200, ml10:  3800, ml100: 14000 },
-  "yara-moi":             { ml5:  1400, ml10:  2300, ml100:  8500 },
-  "yara-tous":            { ml5:  1400, ml10:  2300, ml100:  8500, descuento: 10 },
+const PRECIOS: Record<string, { ml5: number; ml10: number; ml100: number; ml200?: number; ml150?: number; descuento?: number }> = {
+  //                               5 ml     10 ml    100 ml     200 ml   % descuento (opcional)
+  "imperium":             { ml5:  20000, ml10:  35000, ml100: 220000 },
+  "odyssey-aqua":         { ml5:  20000, ml10:  35000, ml100: 190000, ml200: 290000 },
+  "odyssey-spectra":      { ml5:  20000, ml10:  35000, ml100: 190000, ml200: 290000 },
+  "odyssey-homme":        { ml5:  20000, ml10:  35000, ml100: 190000, ml200: 290000 },
+  "afnan-9pm":            { ml5:  20000, ml10:  35000, ml100: 190000, ml150: 240000 },
+  "club-de-nuit-iconic":  { ml5:  25000, ml10:  43000, ml100: 250000, ml200: 400000 },
+  "sceptre-malachite":    { ml5:  22000, ml10:  40000, ml100: 180000 },
+  "amber-oud-aqua-dubai": { ml5:  25000, ml10:  45000, ml100: 360000 },
+  "yara-moi":             { ml5:  18000, ml10:  31000, ml100: 180000 },
+  "yara-tous":            { ml5:  20000, ml10:  35000, ml100: 185000, descuento: 10 },
 };
 // 
 
 import { PrismaClient, Gender, Concentration, VariantType, DiscountKind } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -62,15 +63,32 @@ async function main() {
   ]);
   console.log("  Categories created");
 
-  //  HELPER: crea las 3 variantes a partir de la tabla PRECIOS 
+  //  CREATE TWO ADMIN USERS (cambiar contraseñas por seguridad)
+  const admin1Password = await bcrypt.hash("AdminPass1!", 10);
+  const admin2Password = await bcrypt.hash("AdminPass2!", 10);
+
+  await Promise.all([
+    prisma.user.create({ data: { name: "Admin One", email: "admin1@example.com", passwordHash: admin1Password, isAdmin: true } }),
+    prisma.user.create({ data: { name: "Admin Two", email: "admin2@example.com", passwordHash: admin2Password, isAdmin: true } }),
+  ]);
+  console.log("  Admin users created: admin1@example.com, admin2@example.com (passwords: AdminPass1!, AdminPass2!)");
+
+  //  HELPER: crea variantes a partir de la tabla PRECIOS (200ml solo si existe precio)
   const variants = (slug: string) => {
     const p = PRECIOS[slug];
     if (!p) throw new Error(`No hay precios definidos para: ${slug}`);
-    return [
+    const v: any[] = [
       { type: VariantType.DECANT,      sizeMl: 5,   sku: `${slug}-5ml`,   priceCents: p.ml5,   stock: 30 },
       { type: VariantType.DECANT,      sizeMl: 10,  sku: `${slug}-10ml`,  priceCents: p.ml10,  stock: 20 },
       { type: VariantType.FULL_BOTTLE, sizeMl: 100, sku: `${slug}-100ml`, priceCents: p.ml100, stock: 10 },
     ];
+    // Prefer ml200 if defined, otherwise allow ml150
+    if (p.ml200 !== undefined) {
+      v.push({ type: VariantType.FULL_BOTTLE, sizeMl: 200, sku: `${slug}-200ml`, priceCents: p.ml200, stock: 10 });
+    } else if (p.ml150 !== undefined) {
+      v.push({ type: VariantType.FULL_BOTTLE, sizeMl: 150, sku: `${slug}-150ml`, priceCents: p.ml150, stock: 10 });
+    }
+    return v;
   };
 
   type ProductSeed = {
