@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, setSessionCookie } from "@/lib/auth";
 
+const USE_MOCK = process.env.USE_MOCK_DATA === "true";
+
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password } = await req.json();
@@ -11,6 +13,13 @@ export async function POST(req: NextRequest) {
 
     if (password.length < 6)
       return NextResponse.json({ error: "La contraseña debe tener al menos 6 caracteres" }, { status: 400 });
+
+    // ── Mock mode: simulate registration ──
+    if (USE_MOCK) {
+      const mockUser = { id: "mock-user-" + Date.now(), email: email.toLowerCase(), name: name ?? "Usuario" };
+      await setSessionCookie(mockUser);
+      return NextResponse.json({ user: mockUser }, { status: 201 });
+    }
 
     const exists = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (exists)
